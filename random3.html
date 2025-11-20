@@ -1,0 +1,923 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>无限暖暖 - 随机衣橱生成器</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  
+  <!-- 配置Tailwind自定义主题 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#A855F7', // 主色调：柔和的紫色
+            secondary: '#EC4899', // 辅助色：粉色
+            neutral: '#F3F4F6', // 中性色：浅灰
+            dark: '#1F2937', // 深色文本
+          },
+          fontFamily: {
+            inter: ['Inter', 'system-ui', 'sans-serif'],
+          },
+        },
+      }
+    }
+  </script>
+  
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .table-shadow {
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            .animate-number {
+                transition: all 0.5s ease-out;
+            }
+            .category-header {
+                background: linear-gradient(135deg, #A855F710, #EC489910);
+            }
+            /* 添加手风琴样式 */
+            .accordion-header {
+                cursor: pointer;
+                user-select: none;
+                padding: 0.5rem 0;
+            }
+            .accordion-content {
+                max-height: 0;
+                overflow: hidden;
+                transition: max-height 0.3s ease-out;
+            }
+            .accordion-content.active {
+                max-height: 1000px;
+            }
+            .accordion-icon {
+                transition: transform 0.3s ease;
+            }
+            .accordion-icon.rotate {
+                transform: rotate(180deg);
+            }
+            
+            /* 添加统计弹窗样式 */
+            .stats-panel {
+                position: fixed;
+                left: 0;
+                top: 50%;
+                transform: translateY(-50%);
+                z-index: 1000;
+                transition: all 0.3s ease;
+            }
+            
+            .stats-content {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+            
+            .stats-content.active {
+                transform: translateX(0);
+            }
+            
+            .stats-toggle {
+                position: absolute;
+                right: -40px;
+                top: 50%;
+                transform: translateY(-50%);
+                width: 40px;
+                height: 100px;
+                background: white;
+                border-radius: 0 8px 8px 0;
+                box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+            }
+            
+            /* 半选中样式 */
+            input[type="checkbox"]:indeterminate {
+                background-color: #A855F7;
+            }
+            
+            /* 移动端表格样式优化 */
+            @media (max-width: 768px) {
+                .table-responsive {
+                    display: block;
+                    width: 100%;
+                    overflow-x: auto;
+                }
+                
+                .btn-mobile-group {
+                    width: 100%;
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 0.5rem;
+                }
+                
+                .btn-mobile-full {
+                    grid-column: 1 / -1;
+                }
+                
+                .stats-panel {
+                    position: fixed;
+                    top: auto;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    transform: none;
+                    width: 100%;
+                }
+                
+                .stats-content {
+                    transform: translateY(100%);
+                    width: 100%;
+                    border-radius: 16px 16px 0 0 !important;
+                }
+                
+                .stats-content.active {
+                    transform: translateY(0);
+                }
+                
+                .stats-toggle {
+                    right: auto;
+                    top: -40px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    width: 100px;
+                    height: 40px;
+                    border-radius: 8px 8px 0 0;
+                }
+            }
+        }
+    </style>
+</head>
+<body class="font-inter bg-gradient-to-br from-purple-50 to-pink-50 min-h-screen text-dark">
+  <!-- 页面头部 -->
+  <header class="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 transition-all duration-300">
+    <div class="container mx-auto px-4 py-4 md:py-6">
+      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <i class="fa fa-diamond text-primary text-2xl md:text-3xl"></i>
+          <h1 class="text-[clamp(1.2rem,5vw,2.5rem)] font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            无限暖暖 - 随机衣橱生成器
+          </h1>
+        </div>
+        <p class="text-gray-600 max-w-md text-center md:text-right text-sm md:text-base">
+          随机生成各类服装数量，轻松规划您的游戏衣橱
+        </p>
+      </div>
+    </div>
+  </header>
+
+  <!-- 统计信息弹窗 -->
+  <div class="stats-panel">
+    <div class="stats-content bg-white rounded-r-xl md:rounded-r-xl shadow-lg p-4 md:p-6" id="stats-content">
+      <div class="stats-toggle" id="stats-toggle">
+        <i class="fa fa-chevron-up text-primary md:fa-chevron-right"></i>
+      </div>
+      <h2 class="text-xl font-bold mb-4 text-gray-800 flex items-center">
+        <i class="fa fa-bar-chart text-primary mr-2"></i>衣橱统计
+      </h2>
+      <div class="grid grid-cols-3 gap-3 md:grid-cols-1 md:gap-4">
+        <div class="bg-purple-50 p-3 md:p-4 rounded-lg">
+          <p class="text-gray-600 text-xs md:text-sm mb-1">总类别数</p>
+          <p id="total-categories" class="text-xl md:text-2xl font-bold text-primary">0</p>
+        </div>
+        <div class="bg-pink-50 p-3 md:p-4 rounded-lg">
+          <p class="text-gray-600 text-xs md:text-sm mb-1">已选择类别</p>
+          <p id="selected-categories" class="text-xl md:text-2xl font-bold text-secondary">0</p>
+        </div>
+        <div class="bg-blue-50 p-3 md:p-4 rounded-lg">
+          <p class="text-gray-600 text-xs md:text-sm mb-1">总随机数量</p>
+          <p id="total-items" class="text-xl md:text-2xl font-bold text-blue-500">0</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主要内容区 -->
+  <main class="container mx-auto px-4 py-6 md:py-8">
+    <!-- 操作按钮 -->
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-6 md:mb-8 p-4 bg-white rounded-xl shadow-sm">
+      <div class="w-full md:w-auto">
+        <p class="text-gray-600 text-sm md:text-base"><i class="fa fa-info-circle text-primary mr-2"></i>选择需要包含的服装类别，点击生成按钮获取随机数量</p>
+      </div>
+      <div class="flex flex-wrap gap-3 btn-mobile-group">
+        <button id="select-all" class="px-4 py-2.5 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-all flex items-center justify-center gap-2">
+          <i class="fa fa-check-square-o"></i>全选
+        </button>
+        <button id="deselect-all" class="px-4 py-2.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+          <i class="fa fa-square-o"></i>全不选
+        </button>
+        <button id="generate" class="px-6 py-2.5 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:opacity-90 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2 btn-mobile-full">
+          <i class="fa fa-random"></i>生成随机衣橱
+        </button>
+      </div>
+    </div>
+
+    <!-- 衣橱表格 -->
+    <div class="overflow-x-auto bg-white rounded-xl shadow-sm p-4 mb-6 md:mb-8 table-responsive">
+      <table class="w-full border-collapse min-w-[480px]">
+        <thead>
+          <tr class="border-b-2 border-purple-100">
+            <th class="py-3 px-3 md:px-4 text-left font-semibold text-gray-700 w-1/3">服装类别</th>
+            <th class="py-3 px-3 md:px-4 text-center font-semibold text-gray-700 w-1/6">是否使用</th>
+            <th class="py-3 px-3 md:px-4 text-center font-semibold text-gray-700 w-1/6">最大数量</th>
+            <th class="py-3 px-3 md:px-4 text-center font-semibold text-gray-700 w-1/6">随机数量</th>
+          </tr>
+        </thead>
+        <tbody id="wardrobe-table">
+          <!-- 表格内容将通过JavaScript动态生成 -->
+        </tbody>
+      </table>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-gray-800 text-white py-6 md:py-8 mt-8 md:mt-12">
+    <div class="container mx-auto px-4 text-center">
+      <p class="text-sm md:text-base">© 2023 无限暖暖随机衣橱生成器 | 设计与开发</p>
+      <p class="text-gray-400 text-xs md:text-sm mt-2">本工具仅用于游戏辅助，与游戏官方无关</p>
+    </div>
+  </footer>
+
+  <script>
+    
+    // 衣橱分类数据
+    const wardrobeCategories = [
+      {
+        mainCategory: "头发",
+        subCategory: "",
+        max: 10,
+        used: false
+      },
+      {
+        mainCategory: "连衣裙",
+        subCategory: "",
+        max: 8,
+        used: false,
+        exclusiveGroup: "dress-or-separates" // 与上下衣互斥
+      },
+      {
+        mainCategory: "上衣",
+        subCategory: "",
+        max: 12,
+        used: false,
+        exclusiveGroup: "dress-or-separates", // 与连衣裙互斥
+        requiredGroup: "top-bottom" // 与下装必须同时选中
+      },
+      {
+        mainCategory: "下装",
+        subCategory: "",
+        max: 12,
+        used: false,
+        exclusiveGroup: "dress-or-separates", // 与连衣裙互斥
+        requiredGroup: "top-bottom" // 与上衣必须同时选中
+      },
+      {
+        mainCategory: "外套",
+        subCategory: "",
+        max: 6,
+        used: false
+      },
+      {
+        mainCategory: "袜子",
+        subCategory: "",
+        max: 10,
+        used: false
+      },
+      {
+        mainCategory: "鞋子",
+        subCategory: "",
+        max: 10,
+        used: false
+      },
+     {
+        mainCategory: "饰品",
+        subCategory: "",
+        used: false
+      },
+     {
+        mainCategory: "饰品",
+        subCategory: "发饰",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "帽子",
+        max: 5,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "耳饰",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "颈饰",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "腕饰",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "项圈",
+        max: 5,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "手套",
+        max: 6,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "面饰",
+        max: 5,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "胸饰",
+        max: 6,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "挂饰",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "背饰",
+        max: 5,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "戒指",
+        max: 10,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "臂饰",
+        max: 6,
+        used: false
+      },
+      {
+        mainCategory: "饰品",
+        subCategory: "手持物",
+        max: 6,
+        used: false
+      },
+      {
+        mainCategory: "妆容",
+        subCategory: "",
+        used: false
+      },
+      {
+        mainCategory: "妆容",
+        subCategory: "底妆",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "妆容",
+        subCategory: "眉妆",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "妆容",
+        subCategory: "睫毛",
+        max: 8,
+        used: false
+      },
+      {
+        mainCategory: "妆容",
+        subCategory: "美瞳",
+        max: 10,
+        used: false
+      },
+      {
+        mainCategory: "妆容",
+        subCategory: "唇妆",
+        max: 10,
+        used: false
+      },
+      {
+        mainCategory: "妆容",
+        subCategory: "肤色调整",
+        max: 3,
+        used: false
+      },
+      {
+        mainCategory: "闪光祝福",
+        subCategory: "",
+        used: false
+      },
+      {
+        mainCategory: "闪光祝福",
+        subCategory: "头部",
+        max: 3,
+        used: false
+      },
+      {
+        mainCategory: "闪光祝福",
+        subCategory: "手部",
+        max: 3,
+        used: false
+      },
+      {
+        mainCategory: "闪光祝福",
+        subCategory: "脚部",
+        max: 3,
+        used: false
+      }
+    ];
+
+        // DOM元素
+    const tableBody = document.getElementById('wardrobe-table');
+    const generateBtn = document.getElementById('generate');
+    const selectAllBtn = document.getElementById('select-all');
+    const deselectAllBtn = document.getElementById('deselect-all');
+    const totalCategoriesEl = document.getElementById('total-categories');
+    const selectedCategoriesEl = document.getElementById('selected-categories');
+    const totalItemsEl = document.getElementById('total-items');
+    const statsToggle = document.getElementById('stats-toggle');
+    const statsContent = document.getElementById('stats-content');
+    const header = document.querySelector('header');
+    
+    // 定义需要手风琴效果的分类
+    const accordionCategories = ['饰品', '妆容', '闪光祝福'];
+    // 存储各分类的手风琴状态
+    const accordionStates = {};
+
+    // 初始化表格
+    function initializeTable() {
+      tableBody.innerHTML = '';
+      
+      // 初始化手风琴状态
+        accordionCategories.forEach(category => {
+            accordionStates[category] = false; // 默认关闭
+         });
+
+
+      wardrobeCategories.forEach((item, index) => {
+        const row = document.createElement('tr');
+        row.className = 'border-b border-gray-100 hover:bg-purple-50/50 transition-colors';
+        
+        // 服装类别单元格 - 核心修改点
+        const categoryCell = document.createElement('td');
+        categoryCell.className = 'py-3 px-3 md:px-4';
+        
+        // 确定显示内容：无子类别显示父类别，有子类别显示子类别
+        const displayText = item.subCategory ? item.subCategory : item.mainCategory;
+        
+        // 如果是手风琴分类的父项，添加特殊样式和交互
+        if (accordionCategories.includes(item.mainCategory) && !item.subCategory) {
+          categoryCell.classList.add('font-medium', 'text-primary', 'accordion-header');
+          categoryCell.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span>${displayText}</span>
+              <i class="fa fa-chevron-down accordion-icon"></i>
+            </div>
+          `;
+          
+          // 添加点击事件
+          categoryCell.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const category = item.mainCategory;
+            accordionStates[category] = !accordionStates[category];
+            
+            // 切换图标旋转
+            const icon = categoryCell.querySelector('.accordion-icon');
+            icon.classList.toggle('rotate', accordionStates[category]);
+            
+            // 显示或隐藏该分类下的所有子项
+            const rows = document.querySelectorAll('tr[data-main-category]');
+            rows.forEach(r => {
+              if (r.dataset.mainCategory === category) {
+                r.style.display = accordionStates[category] ? '' : 'none';
+              }
+            });
+          });
+        } else {
+          // 普通类别直接显示文本
+          categoryCell.textContent = displayText;
+        }
+        
+        // 是否使用复选框
+        const usedCell = document.createElement('td');
+        usedCell.className = 'py-3 px-3 md:px-4 text-center';
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = item.used;
+        checkbox.className = 'w-5 h-5 accent-primary cursor-pointer';
+        checkbox.dataset.index = index;
+        
+        // 处理复选框事件
+        checkbox.addEventListener('change', function() {
+          // 处理互斥组逻辑
+          if (item.exclusiveGroup) {
+            if (this.checked) {
+              // 取消同组其他选项
+              wardrobeCategories.forEach((cat, i) => {
+                if (cat.exclusiveGroup === item.exclusiveGroup && i !== index) {
+                  const otherCheckbox = document.querySelector(`input[data-index="${i}"]`);
+                  if (otherCheckbox) {
+                    otherCheckbox.checked = false;
+                    wardrobeCategories[i].used = false;
+                  }
+                }
+              });
+            }
+          }
+          
+          // 处理上下装同步选中/取消选中
+          if (item.requiredGroup === "top-bottom") {
+            // 无论选中还是取消选中，都要同步上衣和下装
+            wardrobeCategories.forEach((cat, i) => {
+              if (cat.requiredGroup === "top-bottom") {
+                cat.used = this.checked;
+                const otherCheckbox = document.querySelector(`input[data-index="${i}"]`);
+                if (otherCheckbox) {
+                  otherCheckbox.checked = this.checked;
+                }
+              }
+            });
+          }
+          
+          // 如果是手风琴分类的父类，需要同步子类
+          if (accordionCategories.includes(item.mainCategory) && !item.subCategory) {
+            // 更新所有子类
+            const mainCategory = item.mainCategory;
+            wardrobeCategories.forEach((cat, i) => {
+              if (cat.mainCategory === mainCategory && cat.subCategory) {
+                cat.used = this.checked;
+                const subCheckbox = document.querySelector(`input[data-index="${i}"]`);
+                if (subCheckbox) {
+                  subCheckbox.checked = this.checked;
+                }
+              }
+            });
+            updateParentCheckbox(mainCategory);
+          }
+          
+          // 如果是手风琴分类中的子类，需要更新父类状态
+          if (accordionCategories.includes(item.mainCategory) && item.subCategory) {
+            updateParentCheckbox(item.mainCategory);
+          }
+          
+          wardrobeCategories[index].used = this.checked;
+          updateStatistics();
+        });
+
+        usedCell.appendChild(checkbox);
+        
+        // 数量范围单元格（只显示最大值输入框）
+        const rangeCell = document.createElement('td');
+        rangeCell.className = 'py-3 px-3 md:px-4 text-center text-gray-600';
+        
+        // 只有当有max属性时才显示输入框（排除父类别项）
+        if (item.max !== undefined && item.subCategory !== "肤色调整") {
+          const maxInput = document.createElement('input');
+          maxInput.type = 'number';
+          maxInput.min = '1';
+          maxInput.max = item.max.toString(); // 设置最大值
+          maxInput.value = item.max;
+          maxInput.className = 'w-16 px-2 py-1 border rounded text-center';
+          maxInput.dataset.index = index;
+          maxInput.addEventListener('change', function() {
+            const index = this.dataset.index;
+            wardrobeCategories[index].max = parseInt(this.value) || 1;
+          });
+          rangeCell.appendChild(maxInput);
+        } else if (item.subCategory === "肤色调整") {
+          // 对于肤色调整，显示固定值3，不显示输入框
+          rangeCell.textContent = "3";
+          // 确保数据中该项的最大值为3
+          item.max = 3;
+        }
+        
+        // 随机数量单元格
+        const randomCell = document.createElement('td');
+        randomCell.className = 'py-3 px-3 md:px-4 text-center';
+        const randomNumSpan = document.createElement('span');
+        randomNumSpan.className = 'animate-number inline-block w-12 h-10 flex items-center justify-center rounded bg-purple-100 text-primary font-medium';
+        randomNumSpan.textContent = '-';
+        randomNumSpan.dataset.index = index;
+        randomCell.appendChild(randomNumSpan);
+        
+        // 添加所有单元格到行
+        row.appendChild(categoryCell);
+        row.appendChild(usedCell);
+        row.appendChild(rangeCell);
+        row.appendChild(randomCell);
+        
+        // 为非标题行添加data属性，便于手风琴控制
+        if (accordionCategories.includes(item.mainCategory) && item.subCategory) {
+          row.dataset.mainCategory = item.mainCategory;
+          // 默认隐藏手风琴内容
+          row.style.display = 'none';
+        }
+        
+        // 添加行到表格
+        tableBody.appendChild(row);
+      });
+      
+      updateStatistics();
+    }
+
+    // 更新父类复选框状态
+    function updateParentCheckbox(mainCategory) {
+      // 查找该主类别的父类复选框
+      let parentIndex = -1;
+      let checkedCount = 0;
+      let totalCount = 0;
+      
+      wardrobeCategories.forEach((item, index) => {
+        if (item.mainCategory === mainCategory) {
+          if (!item.subCategory) {
+            parentIndex = index;
+          } else {
+            totalCount++;
+            if (item.used) {
+              checkedCount++;
+            }
+          }
+        }
+      });
+      
+      if (parentIndex !== -1) {
+        const parentCheckbox = document.querySelector(`input[data-index="${parentIndex}"]`);
+        if (parentCheckbox) {
+          if (checkedCount === 0) {
+            parentCheckbox.checked = false;
+            parentCheckbox.indeterminate = false;
+            wardrobeCategories[parentIndex].used = false;
+          } else if (checkedCount === totalCount) {
+            parentCheckbox.checked = true;
+            parentCheckbox.indeterminate = false;
+            wardrobeCategories[parentIndex].used = true;
+          } else {
+            parentCheckbox.checked = false;
+            parentCheckbox.indeterminate = true;
+            wardrobeCategories[parentIndex].used = false;
+          }
+        }
+      }
+    }
+
+    // 生成随机数
+    function getRandomNumber(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+
+    // 生成随机衣橱
+    function generateRandomWardrobe() {
+      // 检查服装搭配规则
+      const isDressWorn = wardrobeCategories.find(item => item.mainCategory === "连衣裙" && item.used);
+      const isTopWorn = wardrobeCategories.find(item => item.mainCategory === "上衣" && item.used);
+      const isBottomWorn = wardrobeCategories.find(item => item.mainCategory === "下装" && item.used);
+      
+      // 如果没有穿连衣裙，且上衣下装没有同时穿戴，则提示用户
+      if (!isDressWorn && !(isTopWorn && isBottomWorn)) {
+        alert("必须穿好连衣裙或上衣下装穿戴完好才能出门哦");
+        return;
+      }
+      
+      let totalItems = 0;
+      
+      wardrobeCategories.forEach((item, index) => {
+        const randomNumSpan = document.querySelector(`span[data-index="${index}"]`);
+        
+        if (item.used && item.max !== undefined) { // 只处理有max值的项
+          const randomNum = getRandomNumber(1, item.max);
+          // 添加数字变化动画
+          randomNumSpan.style.transform = 'scale(0.8)';
+          randomNumSpan.style.opacity = '0.5';
+          
+          setTimeout(() => {
+            randomNumSpan.textContent = randomNum;
+            randomNumSpan.style.transform = 'scale(1)';
+            randomNumSpan.style.opacity = '1';
+          }, 200);
+          
+          totalItems += randomNum;
+        } else {
+          randomNumSpan.textContent = '';
+        }
+      });
+      
+      // 更新总数量动画
+      setTimeout(() => {
+        animateValue(totalItemsEl, 0, totalItems, 1000);
+      }, 300);
+    }
+
+    // 数字变化动画
+    function animateValue(element, start, end, duration) {
+      let startTimestamp = null;
+      const step = (timestamp) => {
+        if (!startTimestamp) startTimestamp = timestamp;
+        const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+        const value = Math.floor(progress * (end - start) + start);
+        element.textContent = value;
+        if (progress < 1) {
+          window.requestAnimationFrame(step);
+        }
+      };
+      window.requestAnimationFrame(step);
+    }
+
+    // 更新统计信息
+    function updateStatistics() {
+        // 只统计有max属性的项目，因为这些是实际可生成随机数量的服装类别
+        const filteredCategories = wardrobeCategories.filter(item => item.max !== undefined);
+        
+        // 特殊处理上下装组合，将它们视为一组
+        let totalCategories = filteredCategories.length;
+        let selectedCategories = filteredCategories.filter(item => item.used).length;
+        
+        // 检查是否上衣和下装都被选中或者都不选中
+        const topIndex = wardrobeCategories.findIndex(item => item.mainCategory === "上衣");
+        const bottomIndex = wardrobeCategories.findIndex(item => item.mainCategory === "下装");
+        
+        if (topIndex !== -1 && bottomIndex !== -1) {
+            // 如果上衣和下装都存在，将它们视为一组
+            // 总类别数减1（因为两个变成一个）
+            totalCategories -= 1;
+            
+            // 如果上衣和下装都被选中，选中类别数减1（因为两个变成一个）
+            if (wardrobeCategories[topIndex].used && wardrobeCategories[bottomIndex].used) {
+                selectedCategories -= 1;
+            }
+        }
+        
+        totalCategoriesEl.textContent = totalCategories;
+        selectedCategoriesEl.textContent = selectedCategories;
+    }
+
+    // 全选
+    function selectAll() {
+      // 处理互斥组：默认选择连衣裙
+      const exclusiveGroups = {};
+      
+      wardrobeCategories.forEach((item, index) => {
+        // 如果是父类，需要同步子类
+        if (!item.subCategory) {
+          wardrobeCategories.forEach((subItem, subIndex) => {
+            if (subItem.mainCategory === item.mainCategory && subItem.subCategory) {
+              subItem.used = true;
+              const subCheckbox = document.querySelector(`input[data-index="${subIndex}"]`);
+              if (subCheckbox) subCheckbox.checked = true;
+            }
+          });
+        }
+        
+        // 对于互斥组，每个组只选择第一个
+        if (item.exclusiveGroup) {
+          if (!exclusiveGroups[item.exclusiveGroup]) {
+            exclusiveGroups[item.exclusiveGroup] = true;
+            item.used = true;
+          } else {
+            item.used = false;
+          }
+        } 
+        // 对于依赖组（上衣下装），要么都选要么都不选
+        else if (item.requiredGroup === "top-bottom") {
+          // 上衣下装组一起选中
+          item.used = true;
+        } 
+        // 其他独立项直接选中
+        else {
+          item.used = true;
+        }
+        
+        const checkbox = document.querySelector(`input[data-index="${index}"]`);
+        if (checkbox) checkbox.checked = item.used;
+      });
+      
+      // 同步依赖组的状态（确保上下装同时选中）
+      const topIndex = wardrobeCategories.findIndex(item => item.mainCategory === "上衣");
+      const bottomIndex = wardrobeCategories.findIndex(item => item.mainCategory === "下装");
+      
+      if (topIndex !== -1 && bottomIndex !== -1) {
+        const topUsed = wardrobeCategories[topIndex].used;
+        wardrobeCategories[bottomIndex].used = topUsed;
+        const bottomCheckbox = document.querySelector(`input[data-index="${bottomIndex}"]`);
+        if (bottomCheckbox) bottomCheckbox.checked = topUsed;
+      }
+      
+      updateStatistics();
+    }
+
+    // 全不选
+    function deselectAll() {
+      wardrobeCategories.forEach((item, index) => {
+        // 上衣下装组需要一起取消选中
+        if (item.requiredGroup === "top-bottom") {
+          item.used = false;
+        }
+        // 不能取消上衣和下装中的一个，因为它们必须同时选中或不选中
+        // 所以这里我们不做任何操作，保持它们同步
+        
+        else if (!(item.requiredGroup && (item.mainCategory === "上衣" || item.mainCategory === "下装"))) {
+          item.used = false;
+        }
+          
+        const checkbox = document.querySelector(`input[data-index="${index}"]`);
+        if (checkbox) checkbox.checked = item.used;
+        
+        // 如果是手风琴分类的父类，需要同步子类
+        if (accordionCategories.includes(item.mainCategory) && !item.subCategory) {
+          wardrobeCategories.forEach((subItem, subIndex) => {
+            if (subItem.mainCategory === item.mainCategory && subItem.subCategory) {
+              subItem.used = false;
+              const subCheckbox = document.querySelector(`input[data-index="${subIndex}"]`);
+              if (subCheckbox) subCheckbox.checked = false;
+            }
+          });
+        }
+      });
+      
+      // 特殊处理上下装同步取消选中
+      const topIndex = wardrobeCategories.findIndex(item => item.mainCategory === "上衣");
+      const bottomIndex = wardrobeCategories.findIndex(item => item.mainCategory === "下装");
+      if (topIndex !== -1 && bottomIndex !== -1) {
+        // 上下装都设置为未选中
+        wardrobeCategories[topIndex].used = false;
+        wardrobeCategories[bottomIndex].used = false;
+        const topCheckbox = document.querySelector(`input[data-index="${topIndex}"]`);
+        const bottomCheckbox = document.querySelector(`input[data-index="${bottomIndex}"]`);
+        if (topCheckbox) topCheckbox.checked = false;
+        if (bottomCheckbox) bottomCheckbox.checked = false;
+      }
+      
+      updateStatistics();
+    }
+
+    // 切换统计面板
+    function toggleStatsPanel() {
+      statsContent.classList.toggle('active');
+      const icon = statsToggle.querySelector('i');
+      
+      // 根据屏幕宽度调整图标
+      if (window.innerWidth <= 768) {
+        if (statsContent.classList.contains('active')) {
+          icon.classList.remove('fa-chevron-up');
+          icon.classList.add('fa-chevron-down');
+        } else {
+          icon.classList.remove('fa-chevron-down');
+          icon.classList.add('fa-chevron-up');
+        }
+      } else {
+        if (statsContent.classList.contains('active')) {
+          icon.classList.remove('fa-chevron-right');
+          icon.classList.add('fa-chevron-left');
+        } else {
+          icon.classList.remove('fa-chevron-left');
+          icon.classList.add('fa-chevron-right');
+        }
+      }
+    }
+
+    // 处理滚动时的导航栏效果
+    function handleScroll() {
+      if (window.scrollY > 10) {
+        header.classList.add('py-2');
+        header.classList.add('shadow');
+      } else {
+        header.classList.remove('py-2');
+        header.classList.remove('shadow');
+      }
+    }
+
+    // 事件监听
+    generateBtn.addEventListener('click', generateRandomWardrobe);
+    selectAllBtn.addEventListener('click', selectAll);
+    deselectAllBtn.addEventListener('click', deselectAll);
+    statsToggle.addEventListener('click', toggleStatsPanel);
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', toggleStatsPanel); // 当窗口大小改变时重新调整统计面板
+
+    // 页面加载时初始化
+    window.addEventListener('DOMContentLoaded', initializeTable);
+  </script>
+</body>
+</html>

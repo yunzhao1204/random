@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>随机衣橱生成器</title>
+    <style>
+        body { font-family: '微软雅黑', Arial, sans-serif; background: #f8f8fa; margin: 0; padding: 20px; }
+        h1 { text-align: center; }
+        table { border-collapse: collapse; margin: 20px auto; background: #fff; }
+        th, td { border: 1px solid #ccc; padding: 8px 16px; text-align: center; }
+        th { background: #f0f0f0; }
+        .btn { display: block; margin: 20px auto; padding: 10px 30px; font-size: 16px; background: #4caf50; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+        .btn:hover { background: #388e3c; }
+        .used { color: #4caf50; font-weight: bold; }
+        .unused { color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1>随机衣橱生成器</h1>
+    <button class="btn" onclick="generateRandom()">随机生成衣橱</button>
+    <table id="wardrobeTable">
+        <thead>
+            <tr>
+                <th>类别</th>
+                <th>子类别</th>
+                <th>总数量</th>
+                <th>是否使用</th>
+                <th>随机编号</th>
+            </tr>
+        </thead>
+        <tbody id="wardrobeBody">
+            <!-- 动态填充 -->
+        </tbody>
+    </table>
+    <script>
+        // 衣橱数据结构
+        const wardrobe = [
+            { category: '头发', sub: '', total: 120 },
+            { category: '连衣裙', sub: '', total: 80 },
+            { category: '上衣', sub: '', total: 70 },
+            { category: '下装', sub: '', total: 65 },
+            { category: '外套', sub: '', total: 50 },
+            { category: '袜子', sub: '', total: 40 },
+            { category: '鞋子', sub: '', total: 60 },
+            { category: '饰品', sub: '发饰', total: 55 },
+            { category: '饰品', sub: '帽子', total: 30 },
+            { category: '饰品', sub: '耳饰', total: 45 },
+            { category: '饰品', sub: '颈饰', total: 35 },
+            { category: '饰品', sub: '腕饰', total: 25 },
+            { category: '饰品', sub: '项圈', total: 20 },
+            { category: '饰品', sub: '手套', total: 22 },
+            { category: '饰品', sub: '面饰', total: 18 },
+            { category: '饰品', sub: '胸饰', total: 15 },
+            { category: '饰品', sub: '挂饰', total: 28 },
+            { category: '饰品', sub: '背饰', total: 32 },
+            { category: '饰品', sub: '戒指', total: 24 },
+            { category: '饰品', sub: '臂饰', total: 16 },
+            { category: '饰品', sub: '手持物', total: 27 },
+            { category: '妆容', sub: '底妆', total: 10 },
+            { category: '妆容', sub: '眉妆', total: 8 },
+            { category: '妆容', sub: '睫毛', total: 9 },
+            { category: '妆容', sub: '美瞳', total: 12 },
+            { category: '妆容', sub: '唇妆', total: 11 },
+            { category: '妆容', sub: '肤色调整', total: 6 },
+            { category: '闪光祝福', sub: '头部', total: 7 },
+            { category: '闪光祝福', sub: '手部', total: 5 },
+            { category: '闪光祝福', sub: '脚部', total: 4 }
+        ];
+
+        // 记录当前随机结果
+        let currentResult = [];
+
+        // 生成随机衣橱
+        function generateRandom() {
+            currentResult = [];
+            // 连衣裙和上下衣只能二选一
+            const useDress = Math.random() < 0.5;
+            wardrobe.forEach((item, idx) => {
+                let used = true;
+                // 连衣裙和上下衣互斥
+                if (item.category === '连衣裙') {
+                    used = useDress;
+                }
+                if (item.category === '上衣' || item.category === '下装') {
+                    used = !useDress;
+                }
+                // 其他全部使用
+                let rand = used ? getRandomInt(1, item.total) : '';
+                currentResult.push({
+                    ...item,
+                    used,
+                    rand
+                });
+            });
+            renderTable();
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tbody = document.getElementById('wardrobeBody');
+            tbody.innerHTML = '';
+            currentResult.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${item.category}</td>
+                    <td>${item.sub || '-'}</td>
+                    <td>${item.total}</td>
+                    <td class="${item.used ? 'used' : 'unused'}">${item.used ? '✔' : '✘'}</td>
+                    <td>${item.used ? item.rand : '-'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 工具函数：生成[min, max]的随机整数
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        // 页面初始化
+        window.onload = function() {
+            // 默认先生成一次
+            generateRandom();
+        };
+    </script>
+</body>
+</html>
